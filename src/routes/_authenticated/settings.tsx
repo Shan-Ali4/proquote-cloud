@@ -64,7 +64,7 @@ function SettingsPage() {
   });
 
   const form = useForm<Values>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       name: "",
       default_currency: "INR",

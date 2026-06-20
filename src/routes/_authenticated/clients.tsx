@@ -56,7 +56,7 @@ const clientSchema = z.object({
   country: z.string().trim().max(80).optional().or(z.literal("")),
   pincode: z.string().trim().max(20).optional().or(z.literal("")),
   payment_terms: z.string().trim().max(120).optional().or(z.literal("")),
-  credit_limit: z.coerce.number().nonnegative().optional().or(z.literal("")).transform(v => v === "" ? undefined : v),
+  credit_limit: z.string().optional().or(z.literal("")),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
 });
 type ClientValues = z.infer<typeof clientSchema>;
@@ -109,7 +109,7 @@ function ClientsPage() {
   }, [clients, search]);
 
   const form = useForm<ClientValues>({
-    resolver: zodResolver(clientSchema),
+    resolver: zodResolver(clientSchema) as any,
     defaultValues: { country: "India" },
   });
 
@@ -131,7 +131,7 @@ function ClientsPage() {
       state: c.state ?? "",
       country: c.country ?? "India",
       payment_terms: c.payment_terms ?? "",
-      credit_limit: (c.credit_limit ?? "") as unknown as number,
+      credit_limit: c.credit_limit != null ? String(c.credit_limit) : "",
       notes: "",
       address_line1: "",
       pincode: "",
@@ -142,6 +142,9 @@ function ClientsPage() {
   const upsert = useMutation({
     mutationFn: async (values: ClientValues) => {
       if (!user) throw new Error("Not authenticated");
+      const creditNum = values.credit_limit && values.credit_limit !== ""
+        ? Number(values.credit_limit)
+        : null;
       const payload = {
         owner_id: user.id,
         name: values.name,
@@ -156,7 +159,7 @@ function ClientsPage() {
         country: values.country || null,
         pincode: values.pincode || null,
         payment_terms: values.payment_terms || null,
-        credit_limit: values.credit_limit ?? null,
+        credit_limit: Number.isFinite(creditNum as number) ? creditNum : null,
         notes: values.notes || null,
       };
       if (editing) {
@@ -312,7 +315,7 @@ function ClientsPage() {
               <Input {...form.register("payment_terms")} placeholder="Net 30" />
             </Field>
             <Field label="Credit limit (₹)">
-              <Input type="number" step="0.01" {...form.register("credit_limit")} />
+        <Input type="number" step="0.01" inputMode="decimal" {...form.register("credit_limit")} />
             </Field>
             <Field label="Notes" className="sm:col-span-2">
               <Textarea {...form.register("notes")} rows={3} />

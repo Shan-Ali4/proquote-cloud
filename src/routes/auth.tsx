@@ -42,7 +42,7 @@ function AuthPage() {
   }, [loading, user, navigate]);
 
   const form = useForm<EmailPwValues>({
-    resolver: zodResolver(emailPwSchema),
+    resolver: zodResolver(emailPwSchema) as any,
     defaultValues: { email: "", password: "", fullName: "" },
   });
 
