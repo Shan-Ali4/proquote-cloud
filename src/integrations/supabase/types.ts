@@ -14,16 +14,553 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activities: {
+        Row: {
+          action: string
+          created_at: string
+          description: string | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          meta: Json | null
+          owner_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          meta?: Json | null
+          owner_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          meta?: Json | null
+          owner_id?: string
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          company_id: string | null
+          company_name: string | null
+          country: string | null
+          created_at: string
+          credit_limit: number | null
+          email: string | null
+          gst_number: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          notes: string | null
+          owner_id: string
+          pan_number: string | null
+          payment_terms: string | null
+          phone: string | null
+          pincode: string | null
+          state: string | null
+          state_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          email?: string | null
+          gst_number?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          notes?: string | null
+          owner_id: string
+          pan_number?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          pincode?: string | null
+          state?: string | null
+          state_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          email?: string | null
+          gst_number?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          notes?: string | null
+          owner_id?: string
+          pan_number?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          pincode?: string | null
+          state?: string | null
+          state_code?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          bank_account: string | null
+          bank_branch: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          default_currency: string
+          default_gst_rate: number
+          default_notes: string | null
+          default_terms: string | null
+          email: string | null
+          gst_number: string | null
+          id: string
+          invoice_prefix: string
+          legal_name: string | null
+          logo_url: string | null
+          name: string
+          owner_id: string
+          pan_number: string | null
+          phone: string | null
+          pincode: string | null
+          quotation_prefix: string
+          signature_url: string | null
+          state: string | null
+          state_code: string | null
+          updated_at: string
+          upi_id: string | null
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          bank_account?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          default_currency?: string
+          default_gst_rate?: number
+          default_notes?: string | null
+          default_terms?: string | null
+          email?: string | null
+          gst_number?: string | null
+          id?: string
+          invoice_prefix?: string
+          legal_name?: string | null
+          logo_url?: string | null
+          name: string
+          owner_id: string
+          pan_number?: string | null
+          phone?: string | null
+          pincode?: string | null
+          quotation_prefix?: string
+          signature_url?: string | null
+          state?: string | null
+          state_code?: string | null
+          updated_at?: string
+          upi_id?: string | null
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          bank_account?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          default_currency?: string
+          default_gst_rate?: number
+          default_notes?: string | null
+          default_terms?: string | null
+          email?: string | null
+          gst_number?: string | null
+          id?: string
+          invoice_prefix?: string
+          legal_name?: string | null
+          logo_url?: string | null
+          name?: string
+          owner_id?: string
+          pan_number?: string | null
+          phone?: string | null
+          pincode?: string | null
+          quotation_prefix?: string
+          signature_url?: string | null
+          state?: string | null
+          state_code?: string | null
+          updated_at?: string
+          upi_id?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      document_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_percent: number
+          document_id: string
+          hsn_code: string | null
+          id: string
+          line_total: number
+          name: string
+          owner_id: string
+          position: number
+          quantity: number
+          rate: number
+          sku: string | null
+          tax_percent: number
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          document_id: string
+          hsn_code?: string | null
+          id?: string
+          line_total?: number
+          name: string
+          owner_id: string
+          position?: number
+          quantity?: number
+          rate?: number
+          sku?: string | null
+          tax_percent?: number
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          document_id?: string
+          hsn_code?: string | null
+          id?: string
+          line_total?: number
+          name?: string
+          owner_id?: string
+          position?: number
+          quantity?: number
+          rate?: number
+          sku?: string | null
+          tax_percent?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_items_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_sequences: {
+        Row: {
+          doc_type: Database["public"]["Enums"]["doc_type"]
+          id: string
+          last_number: number
+          owner_id: string
+          year: number
+        }
+        Insert: {
+          doc_type: Database["public"]["Enums"]["doc_type"]
+          id?: string
+          last_number?: number
+          owner_id: string
+          year: number
+        }
+        Update: {
+          doc_type?: Database["public"]["Enums"]["doc_type"]
+          id?: string
+          last_number?: number
+          owner_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          amount_paid: number
+          cgst_amount: number
+          client_id: string | null
+          company_id: string | null
+          created_at: string
+          currency: string
+          discount_amount: number
+          discount_type: string
+          discount_value: number
+          doc_number: string
+          doc_type: Database["public"]["Enums"]["doc_type"]
+          grand_total: number
+          gst_kind: Database["public"]["Enums"]["gst_kind"]
+          gst_mode: Database["public"]["Enums"]["gst_mode"]
+          id: string
+          igst_amount: number
+          issue_date: string
+          notes: string | null
+          other_charge: number
+          owner_id: string
+          packaging_charge: number
+          reference: string | null
+          round_off: number
+          sales_person: string | null
+          sgst_amount: number
+          shipping_charge: number
+          status: Database["public"]["Enums"]["doc_status"]
+          subtotal: number
+          taxable_amount: number
+          terms: string | null
+          updated_at: string
+          validity_date: string | null
+        }
+        Insert: {
+          amount_paid?: number
+          cgst_amount?: number
+          client_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          currency?: string
+          discount_amount?: number
+          discount_type?: string
+          discount_value?: number
+          doc_number: string
+          doc_type: Database["public"]["Enums"]["doc_type"]
+          grand_total?: number
+          gst_kind?: Database["public"]["Enums"]["gst_kind"]
+          gst_mode?: Database["public"]["Enums"]["gst_mode"]
+          id?: string
+          igst_amount?: number
+          issue_date?: string
+          notes?: string | null
+          other_charge?: number
+          owner_id: string
+          packaging_charge?: number
+          reference?: string | null
+          round_off?: number
+          sales_person?: string | null
+          sgst_amount?: number
+          shipping_charge?: number
+          status?: Database["public"]["Enums"]["doc_status"]
+          subtotal?: number
+          taxable_amount?: number
+          terms?: string | null
+          updated_at?: string
+          validity_date?: string | null
+        }
+        Update: {
+          amount_paid?: number
+          cgst_amount?: number
+          client_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          currency?: string
+          discount_amount?: number
+          discount_type?: string
+          discount_value?: number
+          doc_number?: string
+          doc_type?: Database["public"]["Enums"]["doc_type"]
+          grand_total?: number
+          gst_kind?: Database["public"]["Enums"]["gst_kind"]
+          gst_mode?: Database["public"]["Enums"]["gst_mode"]
+          id?: string
+          igst_amount?: number
+          issue_date?: string
+          notes?: string | null
+          other_charge?: number
+          owner_id?: string
+          packaging_charge?: number
+          reference?: string | null
+          round_off?: number
+          sales_person?: string | null
+          sgst_amount?: number
+          shipping_charge?: number
+          status?: Database["public"]["Enums"]["doc_status"]
+          subtotal?: number
+          taxable_amount?: number
+          terms?: string | null
+          updated_at?: string
+          validity_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          document_id: string
+          id: string
+          method: string | null
+          notes: string | null
+          owner_id: string
+          paid_on: string
+          reference: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          document_id: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          owner_id: string
+          paid_on?: string
+          reference?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          document_id?: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          owner_id?: string
+          paid_on?: string
+          reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      next_document_number: {
+        Args: {
+          _doc_type: Database["public"]["Enums"]["doc_type"]
+          _prefix: string
+          _year: number
+        }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "manager" | "accountant" | "viewer"
+      doc_status:
+        | "draft"
+        | "sent"
+        | "approved"
+        | "rejected"
+        | "expired"
+        | "paid"
+        | "partially_paid"
+      doc_type: "quotation" | "proforma"
+      gst_kind: "intra" | "inter"
+      gst_mode: "exclusive" | "inclusive" | "none"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +687,20 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "manager", "accountant", "viewer"],
+      doc_status: [
+        "draft",
+        "sent",
+        "approved",
+        "rejected",
+        "expired",
+        "paid",
+        "partially_paid",
+      ],
+      doc_type: ["quotation", "proforma"],
+      gst_kind: ["intra", "inter"],
+      gst_mode: ["exclusive", "inclusive", "none"],
+    },
   },
 } as const
