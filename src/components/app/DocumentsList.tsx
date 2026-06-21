@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Search, Trash2, FileText } from "lucide-react";
+import { Plus, Search, Trash2, FileText, FileDown, FileSpreadsheet, MoreHorizontal } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { DocumentBuilder } from "./DocumentBuilder";
+import { exportDocumentPdf, exportDocumentExcel } from "@/lib/export";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type DocType = "quotation" | "proforma";
 
@@ -89,6 +97,16 @@ export function DocumentsList({ docType }: { docType: DocType }) {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const handleExport = async (id: string, kind: "pdf" | "xlsx") => {
+    try {
+      if (kind === "pdf") await exportDocumentPdf(id);
+      else await exportDocumentExcel(id);
+      toast.success(`Exported ${kind.toUpperCase()}`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
 
   const label = docType === "quotation" ? "Quotation" : "Proforma Invoice";
   const labelPlural = docType === "quotation" ? "Quotations" : "Proforma Invoices";
@@ -171,9 +189,38 @@ export function DocumentsList({ docType }: { docType: DocType }) {
                       {formatCurrency(Number(d.grand_total), d.currency)}
                     </td>
                     <td className="px-2 py-3">
-                      <Button size="icon" variant="ghost" onClick={() => setToDelete(d)}>
-                        <Trash2 className="size-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Download PDF"
+                          onClick={() => handleExport(d.id, "pdf")}
+                        >
+                          <FileDown className="size-4" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleExport(d.id, "pdf")}>
+                              <FileDown className="size-4" /> Download PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExport(d.id, "xlsx")}>
+                              <FileSpreadsheet className="size-4" /> Download Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setToDelete(d)}
+                            >
+                              <Trash2 className="size-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </td>
                   </tr>
                 ))}
