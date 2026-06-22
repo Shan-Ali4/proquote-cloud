@@ -98,123 +98,142 @@ function amountInWords(num: number): string {
   return `Rupees ${str}${paise ? ` and ${inWords(paise)} Paise` : ""} Only`;
 }
 
-const BRAND = { r: 37, g: 99, b: 235 }; // #2563EB
+const BRAND = { r: 37, g: 99, b: 235 }; // #2563EB (kept for excel export)
 const INK = { r: 15, g: 23, b: 42 };
 const MUTED = { r: 100, g: 116, b: 139 };
 
+function moneyPlain(amount: number, currency = "INR") {
+  const v = Number.isFinite(amount) ? amount : 0;
+  return v.toLocaleString(currency === "INR" ? "en-IN" : "en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+// Tally-style A4 PDF matching the PMTC Quotation template.
 export async function exportDocumentPdf(id: string) {
   const d = await fetchDocumentFull(id);
   const c = (d.companies ?? {}) as Record<string, unknown>;
   const cl = (d.clients ?? {}) as Record<string, unknown>;
   const cur = d.currency || "INR";
   const isQ = d.doc_type === "quotation";
+  const intra = d.gst_kind === "intra";
   const title = isQ ? "QUOTATION" : "PROFORMA INVOICE";
 
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = 210;
-  const M = 12;
+  const H = 297;
+  const M = 10;
+  const innerW = W - M * 2;
 
-  // Top brand bar
-  doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
-  doc.rect(0, 0, W, 22, "F");
-  doc.setTextColor(255, 255, 255);
+  // Outer page border
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.4);
+  doc.rect(M, M, innerW, H - M * 2);
+
+  // ---------- Header ----------
+  let y = M + 7;
+  doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text(s(c.name, "Your Company"), M, 10);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  const addrTop = [s(c.address_line1), s(c.address_line2)].filter(Boolean).join(", ");
-  const addrBot = [s(c.city), s(c.state), s(c.postal_code), s(c.country)].filter(Boolean).join(", ");
-  doc.text([addrTop, addrBot].filter(Boolean).join(" · ") || " ", M, 15);
-  doc.text(
-    [c.phone && `Ph: ${c.phone}`, c.email && `Email: ${c.email}`, c.website].filter(Boolean).join("  ·  ") as string,
-    M, 19,
-  );
+  doc.text(s(c.name, "Your Company").toUpperCase(), W / 2, y, { align: "center" });
 
-  // Title pill
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(W - M - 60, 5, 60, 12, 2, 2, "F");
-  doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text(title, W - M - 30, 13, { align: "center" });
-
-  // Meta strip
-  let y = 28;
-  doc.setTextColor(INK.r, INK.g, INK.b);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text(`#${d.doc_number}`, M, y);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(MUTED.r, MUTED.g, MUTED.b);
-  const metaRight = [
-    `Date: ${formatDate(d.issue_date)}`,
-    d.validity_date && `${isQ ? "Valid until" : "Due"}: ${formatDate(d.validity_date)}`,
-    d.reference && `Ref: ${d.reference}`,
-  ].filter(Boolean).join("    ");
-  doc.text(metaRight, W - M, y, { align: "right" });
-
-  // Parties
   y += 5;
-  doc.setDrawColor(226, 232, 240);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const addr = [
+    s(c.address_line1),
+    s(c.address_line2),
+    s(c.city),
+    s(c.state),
+    s(c.postal_code),
+  ].filter(Boolean).join(", ");
+  const contact = [c.phone && `Phone: ${c.phone}`, c.email && `Email: ${c.email}`]
+    .filter(Boolean).join(" | ");
+  const headerLine = [addr, contact].filter(Boolean).join(" | ");
+  if (headerLine) {
+    doc.text(headerLine, W / 2, y, { align: "center", maxWidth: innerW - 4 });
+    y += 4.5;
+  }
+  if (c.gst_number) {
+    doc.setFont("helvetica", "bold");
+    doc.text(`GSTIN: ${c.gst_number}`, W / 2, y, { align: "center" });
+    y += 4.5;
+  }
+
+  // Horizontal separator
+  doc.setLineWidth(0.3);
   doc.line(M, y, W - M, y);
-  y += 4;
 
-  const colW = (W - M * 2 - 6) / 2;
-  const boxY = y;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(M, boxY, colW, 30, 2, 2, "F");
-  doc.roundedRect(M + colW + 6, boxY, colW, 30, 2, 2, "F");
-
-  doc.setFontSize(8);
-  doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
+  // Title
+  y += 7;
   doc.setFont("helvetica", "bold");
-  doc.text("BILL FROM", M + 3, boxY + 5);
-  doc.text("BILL TO", M + colW + 9, boxY + 5);
+  doc.setFontSize(14);
+  doc.text(title, W / 2, y, { align: "center" });
+  y += 3;
+  doc.line(M, y, W - M, y);
 
-  doc.setTextColor(INK.r, INK.g, INK.b);
-  doc.setFontSize(9.5);
-  doc.text(s(c.name, "—"), M + 3, boxY + 10);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(MUTED.r, MUTED.g, MUTED.b);
-  const fromLines = [
-    [s(c.address_line1), s(c.address_line2)].filter(Boolean).join(", "),
-    [s(c.city), s(c.state), s(c.postal_code)].filter(Boolean).join(", "),
-    c.gst_number && `GSTIN: ${c.gst_number}`,
-    c.pan_number && `PAN: ${c.pan_number}`,
-  ].filter(Boolean) as string[];
-  fromLines.forEach((ln, i) => doc.text(ln, M + 3, boxY + 14 + i * 4));
-
+  // ---------- Meta strip: doc no + date ----------
+  y += 6;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.setTextColor(INK.r, INK.g, INK.b);
-  doc.text(s(cl.name, "—") + (cl.company_name ? ` · ${cl.company_name}` : ""), M + colW + 9, boxY + 10);
+  doc.setFontSize(10);
+  const numLabel = isQ ? "Quotation No" : "Proforma No";
+  doc.text(`${numLabel}: ${d.doc_number}`, M + 2, y);
+  doc.text(`Date: ${formatDate(d.issue_date)}`, W - M - 2, y, { align: "right" });
+  y += 2;
+  doc.setLineWidth(0.2);
+  doc.line(M, y, W - M, y);
+
+  // ---------- Buyer block ----------
+  y += 5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Buyer (Bill to):", M + 2, y);
+  const pos = [s(cl.state), s(cl.country)].filter(Boolean).join(", ") || s(c.state, "—");
+  doc.text(`Place of Supply: ${pos}`, W - M - 2, y, { align: "right" });
+
+  y += 5;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(MUTED.r, MUTED.g, MUTED.b);
-  const toLines = [
-    [s(cl.address_line1), s(cl.address_line2)].filter(Boolean).join(", "),
+  doc.setFontSize(10);
+  const buyerName = s(cl.company_name) || s(cl.name, "—");
+  doc.setFont("helvetica", "bold");
+  doc.text("Name:", M + 2, y);
+  doc.setFont("helvetica", "normal");
+  doc.text(buyerName, M + 18, y);
+  y += 5;
+
+  const buyerAddr = [
+    s(cl.address_line1),
+    s(cl.address_line2),
     [s(cl.city), s(cl.state), s(cl.postal_code)].filter(Boolean).join(", "),
-    cl.gst_number && `GSTIN: ${cl.gst_number}`,
-    cl.email && `Email: ${cl.email}`,
-  ].filter(Boolean) as string[];
-  toLines.forEach((ln, i) => doc.text(ln, M + colW + 9, boxY + 14 + i * 4));
+  ].filter(Boolean).join(", ");
+  doc.setFont("helvetica", "bold");
+  doc.text("Add:", M + 2, y);
+  doc.setFont("helvetica", "normal");
+  const addrLines = doc.splitTextToSize(buyerAddr || "—", innerW - 24);
+  doc.text(addrLines, M + 18, y);
+  y += addrLines.length * 4.5;
 
-  y = boxY + 34;
+  if (cl.gst_number) {
+    doc.setFont("helvetica", "bold");
+    doc.text("GSTIN:", M + 2, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(s(cl.gst_number), M + 18, y);
+    y += 5;
+  }
 
-  // Items table
-  const intra = d.gst_kind === "intra";
-  const head = intra
-    ? [["#", "Item / Description", "HSN", "Qty", "Rate", "Disc%", "Taxable", "CGST", "SGST", "Total"]]
-    : [["#", "Item / Description", "HSN", "Qty", "Rate", "Disc%", "Taxable", "IGST", "Total"]];
+  y += 1;
+
+  // ---------- Items table ----------
+  // Columns matching PMTC: Sr.No | Description | Qty | Rate | Per | Taxable | GST% | Amount
+  const head = [["Sr. No.", "Description of Goods", "Qty", "Rate", "Per", "Taxable Value", "GST %", "Amount"]];
 
   const body = d.document_items.map((it, idx) => {
     const q = n(it.quantity);
-    const r = n(it.rate);
+    const rate = n(it.rate);
     const dp = n(it.discount_percent);
     const tp = n(it.tax_percent);
-    const gross = q * r;
+    const gross = q * rate;
     const disc = gross * (dp / 100);
     let taxable = gross - disc;
     let tax = 0;
@@ -226,180 +245,178 @@ export async function exportDocumentPdf(id: string) {
     }
     const total = d.gst_mode === "inclusive" ? gross - disc : taxable + tax;
     const name = it.description ? `${it.name}\n${it.description}` : it.name;
-    const row = [
+    const hsn = it.hsn_code ? `${name}\nHSN: ${it.hsn_code}` : name;
+    return [
       String(idx + 1),
-      name,
-      s(it.hsn_code, "—"),
-      `${q} ${it.unit ?? ""}`.trim(),
-      money(r, cur),
-      `${dp}%`,
-      money(taxable, cur),
+      hsn,
+      String(q),
+      moneyPlain(rate, cur),
+      s(it.unit, "Nos"),
+      moneyPlain(taxable, cur),
+      `${tp}%`,
+      moneyPlain(total, cur),
     ];
-    if (intra) {
-      row.push(money(tax / 2, cur) + `\n@${tp / 2}%`);
-      row.push(money(tax / 2, cur) + `\n@${tp / 2}%`);
-    } else {
-      row.push(money(tax, cur) + `\n@${tp}%`);
-    }
-    row.push(money(total, cur));
-    return row;
   });
+
+  // Footer (totals) rows inside the same grid table — like Tally.
+  const totalsBody: Array<Array<{ content: string; styles?: Record<string, unknown>; colSpan?: number }>> = [];
+
+  const pushTotal = (label: string, value: string, opts: { bold?: boolean; fill?: boolean } = {}) => {
+    totalsBody.push([
+      {
+        content: label,
+        colSpan: 5,
+        styles: {
+          halign: "right",
+          fontStyle: opts.bold ? "bold" : "normal",
+          fillColor: opts.fill ? [240, 240, 240] : [255, 255, 255],
+        },
+      },
+      { content: "", colSpan: 2, styles: { fillColor: opts.fill ? [240, 240, 240] : [255, 255, 255] } },
+      {
+        content: value,
+        styles: {
+          halign: "right",
+          fontStyle: opts.bold ? "bold" : "normal",
+          fillColor: opts.fill ? [240, 240, 240] : [255, 255, 255],
+        },
+      },
+    ]);
+  };
+
+  pushTotal("Sub-Total (Total Taxable Value)", moneyPlain(d.taxable_amount, cur), { bold: true });
+  if (intra) {
+    pushTotal("Central Tax (CGST)", moneyPlain(d.cgst_amount, cur));
+    pushTotal("State Tax (SGST)", moneyPlain(d.sgst_amount, cur));
+  } else if (n(d.igst_amount) > 0) {
+    pushTotal("Integrated Tax (IGST)", moneyPlain(d.igst_amount, cur));
+  }
+  if (n(d.shipping_charge)) pushTotal("Shipping", moneyPlain(d.shipping_charge, cur));
+  if (n(d.packaging_charge)) pushTotal("Packaging", moneyPlain(d.packaging_charge, cur));
+  if (n(d.other_charge)) pushTotal("Other Charges", moneyPlain(d.other_charge, cur));
+  const roundOff = Math.round(n(d.grand_total)) - n(d.grand_total);
+  if (Math.abs(roundOff) >= 0.005) {
+    pushTotal("Round Off", moneyPlain(roundOff, cur));
+  }
+  pushTotal(`Total Amount (${cur})`, moneyPlain(Math.round(n(d.grand_total)), cur), { bold: true, fill: true });
 
   autoTable(doc, {
     startY: y,
     head,
-    body,
+    body: [...body, ...(totalsBody as unknown as string[][])],
     theme: "grid",
     margin: { left: M, right: M },
-    styles: { fontSize: 8.2, cellPadding: 2, lineColor: [226, 232, 240], textColor: [15, 23, 42] },
-    headStyles: { fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontStyle: "bold", halign: "center" },
-    columnStyles: intra
-      ? {
-          0: { halign: "center", cellWidth: 8 },
-          1: { cellWidth: 52 },
-          2: { halign: "center", cellWidth: 16 },
-          3: { halign: "right", cellWidth: 14 },
-          4: { halign: "right", cellWidth: 20 },
-          5: { halign: "right", cellWidth: 12 },
-          6: { halign: "right", cellWidth: 22 },
-          7: { halign: "right", cellWidth: 18 },
-          8: { halign: "right", cellWidth: 18 },
-          9: { halign: "right", cellWidth: 16 },
-        }
-      : {
-          0: { halign: "center", cellWidth: 8 },
-          1: { cellWidth: 62 },
-          2: { halign: "center", cellWidth: 18 },
-          3: { halign: "right", cellWidth: 16 },
-          4: { halign: "right", cellWidth: 22 },
-          5: { halign: "right", cellWidth: 14 },
-          6: { halign: "right", cellWidth: 24 },
-          7: { halign: "right", cellWidth: 22 },
-          8: { halign: "right", cellWidth: 20 },
-        },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-  });
-
-  // Totals & notes
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const afterY = (doc as any).lastAutoTable.finalY + 4;
-  const totalsW = 72;
-  const totalsX = W - M - totalsW;
-
-  const totalsRows: Array<[string, string]> = [
-    ["Subtotal", money(d.subtotal, cur)],
-    ["Discount", `− ${money(d.discount_amount, cur)}`],
-    ["Taxable", money(d.taxable_amount, cur)],
-  ];
-  if (intra) {
-    totalsRows.push(["CGST", money(d.cgst_amount, cur)]);
-    totalsRows.push(["SGST", money(d.sgst_amount, cur)]);
-  } else if (n(d.igst_amount) > 0) {
-    totalsRows.push(["IGST", money(d.igst_amount, cur)]);
-  }
-  if (n(d.shipping_charge)) totalsRows.push(["Shipping", money(d.shipping_charge, cur)]);
-  if (n(d.packaging_charge)) totalsRows.push(["Packaging", money(d.packaging_charge, cur)]);
-  if (n(d.other_charge)) totalsRows.push(["Other", money(d.other_charge, cur)]);
-
-  autoTable(doc, {
-    startY: afterY,
-    margin: { left: totalsX },
-    tableWidth: totalsW,
-    body: totalsRows,
-    theme: "plain",
-    styles: { fontSize: 9, cellPadding: 1.5 },
-    columnStyles: { 0: { textColor: [100, 116, 139] }, 1: { halign: "right", fontStyle: "bold" } },
+    tableWidth: innerW,
+    styles: {
+      fontSize: 9,
+      cellPadding: 1.6,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.2,
+      textColor: [0, 0, 0],
+      valign: "middle",
+    },
+    headStyles: {
+      fillColor: [235, 235, 235],
+      textColor: [0, 0, 0],
+      fontStyle: "bold",
+      halign: "center",
+      lineColor: [0, 0, 0],
+      lineWidth: 0.2,
+    },
+    columnStyles: {
+      0: { halign: "center", cellWidth: 14 },
+      1: { cellWidth: 78 },
+      2: { halign: "right", cellWidth: 14 },
+      3: { halign: "right", cellWidth: 24 },
+      4: { halign: "center", cellWidth: 14 },
+      5: { halign: "right", cellWidth: 28 },
+      6: { halign: "center", cellWidth: 14 },
+      7: { halign: "right", cellWidth: innerW - 14 - 78 - 14 - 24 - 14 - 28 - 14 },
+    },
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tY = (doc as any).lastAutoTable.finalY + 2;
-  doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
-  doc.roundedRect(totalsX, tY, totalsW, 10, 2, 2, "F");
-  doc.setTextColor(255, 255, 255);
+  let afterY = (doc as any).lastAutoTable.finalY;
+
+  // ---------- Amount in words ----------
+  afterY += 5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.text("Amount in Words:", M + 2, afterY);
+  doc.setFont("helvetica", "normal");
+  const words = doc.splitTextToSize(amountInWords(Math.round(n(d.grand_total))), innerW - 32);
+  doc.text(words, M + 32, afterY);
+  afterY += words.length * 4.5 + 3;
+
+  doc.setLineWidth(0.2);
+  doc.line(M, afterY, W - M, afterY);
+
+  // ---------- Bank details (left) + signature (right) ----------
+  const blockTop = afterY + 5;
+  let leftY = blockTop;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text("GRAND TOTAL", totalsX + 3, tY + 6.5);
-  doc.text(money(d.grand_total, cur), totalsX + totalsW - 3, tY + 6.5, { align: "right" });
-
-  // Amount in words
-  let leftY = afterY;
-  doc.setTextColor(MUTED.r, MUTED.g, MUTED.b);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("AMOUNT IN WORDS", M, leftY);
+  doc.text("Bank Details:", M + 2, leftY);
+  leftY += 5;
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(INK.r, INK.g, INK.b);
-  doc.setFontSize(9);
-  const words = doc.splitTextToSize(amountInWords(n(d.grand_total)), totalsX - M - 4);
-  doc.text(words, M, leftY + 4);
-  leftY += 4 + words.length * 4 + 4;
+  doc.setFontSize(9.5);
+  const bank = [
+    c.bank_name && `Bank Name: ${c.bank_name}`,
+    c.bank_account && `A/c No: ${c.bank_account}`,
+    c.bank_ifsc && `IFSC Code: ${c.bank_ifsc}`,
+    c.bank_branch && `Branch: ${c.bank_branch}`,
+    c.upi_id && `UPI: ${c.upi_id}`,
+  ].filter(Boolean) as string[];
+  if (bank.length === 0) bank.push("—");
+  bank.forEach((b, i) => doc.text(b, M + 2, leftY + i * 4.5));
+  const bankBottom = leftY + bank.length * 4.5;
 
-  // Bank + UPI
-  if (c.bank_name || c.bank_account || c.upi_id) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.text("PAYMENT DETAILS", M, leftY);
-    leftY += 4;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(INK.r, INK.g, INK.b);
-    const bank = [
-      c.bank_name && `Bank: ${c.bank_name}`,
-      c.bank_account && `A/C: ${c.bank_account}`,
-      c.bank_ifsc && `IFSC: ${c.bank_ifsc}`,
-      c.bank_branch && `Branch: ${c.bank_branch}`,
-      c.upi_id && `UPI: ${c.upi_id}`,
-    ].filter(Boolean) as string[];
-    bank.forEach((b, i) => doc.text(b, M, leftY + i * 4));
-    leftY += bank.length * 4 + 2;
-  }
+  // Signature block on the right
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(`For ${s(c.name, "Company").toUpperCase()}`, W - M - 2, blockTop, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.text("Authorised Signatory", W - M - 2, blockTop + 22, { align: "right" });
+  // Signature line
+  doc.setLineWidth(0.2);
+  doc.line(W - M - 60, blockTop + 19, W - M - 2, blockTop + 19);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const finalY = Math.max(leftY, tY + 14) + 4;
-  let cursorY = finalY;
+  let cursorY = Math.max(bankBottom, blockTop + 26) + 4;
 
+  // ---------- Notes / Terms ----------
   if (d.notes) {
+    doc.setLineWidth(0.2);
+    doc.line(M, cursorY, W - M, cursorY);
+    cursorY += 4;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.text("NOTES", M, cursorY);
+    doc.setFontSize(9);
+    doc.text("Notes:", M + 2, cursorY);
+    cursorY += 4;
+    doc.setFont("helvetica", "normal");
+    const lines = doc.splitTextToSize(d.notes, innerW - 4);
+    doc.text(lines, M + 2, cursorY);
+    cursorY += lines.length * 4;
+  }
+  if (d.terms) {
+    cursorY += 2;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Terms & Conditions:", M + 2, cursorY);
     cursorY += 4;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    doc.setTextColor(INK.r, INK.g, INK.b);
-    const lines = doc.splitTextToSize(d.notes, W - M * 2);
-    doc.text(lines, M, cursorY);
-    cursorY += lines.length * 4 + 3;
+    const lines = doc.splitTextToSize(d.terms, innerW - 4);
+    doc.text(lines, M + 2, cursorY);
+    cursorY += lines.length * 3.8;
   }
 
-  if (d.terms) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.text("TERMS & CONDITIONS", M, cursorY);
-    cursorY += 4;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(MUTED.r, MUTED.g, MUTED.b);
-    const lines = doc.splitTextToSize(d.terms, W - M * 2);
-    doc.text(lines, M, cursorY);
-    cursorY += lines.length * 3.5;
-  }
-
-  // Footer signature + page
-  const pageH = doc.internal.pageSize.getHeight();
-  doc.setDrawColor(226, 232, 240);
-  doc.line(M, pageH - 22, W - M, pageH - 22);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(INK.r, INK.g, INK.b);
-  doc.text(`For ${s(c.name, "Company")}`, W - M, pageH - 17, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  // Footer note inside border
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7.5);
   doc.setTextColor(MUTED.r, MUTED.g, MUTED.b);
-  doc.text("Authorised Signatory", W - M, pageH - 8, { align: "right" });
-  doc.text("This is a computer-generated document.", M, pageH - 8);
+  doc.text("This is a computer-generated document.", W / 2, H - M - 3, { align: "center" });
+  doc.setTextColor(INK.r, INK.g, INK.b);
 
   doc.save(`${d.doc_number}.pdf`);
 }
