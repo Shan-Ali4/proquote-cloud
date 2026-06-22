@@ -82,11 +82,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "ProQuote Pro — Proforma Invoice & Quotation Management" },
       { name: "description", content: "Premium quotation and proforma invoice management with GST, branded PDFs, Excel exports, and a real-time revenue dashboard." },
       { name: "author", content: "ProQuote Pro" },
-      { property: "og:title", content: "ProQuote Pro" },
-      { property: "og:description", content: "Premium quotation and proforma invoice management for modern businesses." },
+      { property: "og:title", content: "ProQuote Pro — Proforma Invoice & Quotation Management" },
+      { property: "og:description", content: "Premium quotation and proforma invoice management with GST, branded PDFs, Excel exports, and a real-time revenue dashboard." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "ProQuote Pro — Proforma Invoice & Quotation Management" },
+      { name: "twitter:description", content: "Premium quotation and proforma invoice management with GST, branded PDFs, Excel exports, and a real-time revenue dashboard." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/72606a8f-65cc-46fa-acd0-3774d60cd1b9" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/72606a8f-65cc-46fa-acd0-3774d60cd1b9" },
     ],
     links: [
       {
