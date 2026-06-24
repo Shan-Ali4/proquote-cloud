@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Search, Trash2, FileText, FileDown, FileSpreadsheet, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Trash2, FileText, FileDown, FileSpreadsheet, MoreHorizontal, Pencil } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ const statusTone: Record<string, string> = {
 export function DocumentsList({ docType }: { docType: DocType }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [toDelete, setToDelete] = useState<Row | null>(null);
 
@@ -198,6 +199,14 @@ export function DocumentsList({ docType }: { docType: DocType }) {
                         >
                           <FileDown className="size-4" />
                         </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Edit"
+                          onClick={() => setEditId(d.id)}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button size="icon" variant="ghost">
@@ -205,6 +214,9 @@ export function DocumentsList({ docType }: { docType: DocType }) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setEditId(d.id)}>
+                              <Pencil className="size-4" /> Edit
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleExport(d.id, "pdf")}>
                               <FileDown className="size-4" /> Download PDF
                             </DropdownMenuItem>
@@ -231,6 +243,12 @@ export function DocumentsList({ docType }: { docType: DocType }) {
       </div>
 
       <DocumentBuilder open={open} onOpenChange={setOpen} docType={docType} />
+      <DocumentBuilder
+        open={!!editId}
+        onOpenChange={(o) => !o && setEditId(null)}
+        docType={docType}
+        documentId={editId}
+      />
 
       <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <AlertDialogContent>
