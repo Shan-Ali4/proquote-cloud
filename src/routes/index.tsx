@@ -46,7 +46,7 @@ function Index() {
           <span className="size-1.5 rounded-full bg-success" /> Built for Indian GST · CGST · SGST · IGST
         </div>
         <h1 className="font-display text-5xl md:text-7xl font-bold tracking-tight max-w-4xl mx-auto bg-clip-text text-transparent bg-[image:linear-gradient(180deg,var(--foreground)_0%,color-mix(in_oklab,var(--foreground)_60%,transparent)_100%)]">
-          Premium quotations &amp; Proforma invoices, ready in seconds.
+          Premium Quotations &amp; Proforma invoices, ready in seconds.
         </h1>
         <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
           ProQuote Pro generates branded, GST-perfect PDFs and editable Excel exports — with a real-time revenue dashboard, multi-currency support, and UPI QR payments.
