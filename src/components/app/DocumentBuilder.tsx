@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, Calculator } from "lucide-react";
+import { Plus, Trash2, Calculator, UserPlus } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ type Props = {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   docType: DocType;
+  documentId?: string | null;
 };
 
 type Item = LineInput & {
@@ -53,9 +54,11 @@ const emptyItem = (defaultTax = 18): Item => ({
   tax_percent: defaultTax,
 });
 
-export function DocumentBuilder({ open, onOpenChange, docType }: Props) {
+export function DocumentBuilder({ open, onOpenChange, docType, documentId }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const isEdit = !!documentId;
+  const [showNewClient, setShowNewClient] = useState(false);
 
   const { data: clients } = useQuery({
     queryKey: ["clients-options"],
@@ -85,6 +88,21 @@ export function DocumentBuilder({ open, onOpenChange, docType }: Props) {
     enabled: open,
   });
 
+  // Load existing document when editing
+  const { data: existing } = useQuery({
+    queryKey: ["document-edit", documentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("*, document_items(*)")
+        .eq("id", documentId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && !!documentId,
+  });
+
   const defaultTax = Number(company?.default_gst_rate ?? 18);
 
   const [clientId, setClientId] = useState<string>("");
@@ -103,22 +121,54 @@ export function DocumentBuilder({ open, onOpenChange, docType }: Props) {
 
   useEffect(() => {
     if (open) {
-      setItems([emptyItem(defaultTax)]);
-      setClientId("");
-      setIssueDate(new Date().toISOString().slice(0, 10));
-      setValidityDate("");
-      setReference("");
-      setGstMode("exclusive");
-      setGstKind("intra");
-      setExtraDiscount("0");
-      setShipping("0");
-      setPackaging("0");
-      setOther("0");
-      setNotes(company?.default_notes ?? "");
-      setTerms(company?.default_terms ?? "");
+      if (isEdit && existing) {
+        const ex = existing as Record<string, unknown> & {
+          document_items?: Array<Record<string, unknown>>;
+        };
+        setClientId(String(ex.client_id ?? ""));
+        setIssueDate(String(ex.issue_date ?? new Date().toISOString().slice(0, 10)));
+        setValidityDate(ex.validity_date ? String(ex.validity_date) : "");
+        setReference(ex.reference ? String(ex.reference) : "");
+        setGstMode((ex.gst_mode as typeof gstMode) ?? "exclusive");
+        setGstKind((ex.gst_kind as typeof gstKind) ?? "intra");
+        setExtraDiscount(String(ex.discount_value ?? "0"));
+        setShipping(String(ex.shipping_charge ?? "0"));
+        setPackaging(String(ex.packaging_charge ?? "0"));
+        setOther(String(ex.other_charge ?? "0"));
+        setNotes(ex.notes ? String(ex.notes) : "");
+        setTerms(ex.terms ? String(ex.terms) : "");
+        const rows = (ex.document_items ?? [])
+          .slice()
+          .sort((a, b) => Number(a.position) - Number(b.position))
+          .map((it) => ({
+            name: String(it.name ?? ""),
+            hsn_code: String(it.hsn_code ?? ""),
+            unit: String(it.unit ?? "pcs"),
+            description: String(it.description ?? ""),
+            quantity: Number(it.quantity ?? 1),
+            rate: Number(it.rate ?? 0),
+            discount_percent: Number(it.discount_percent ?? 0),
+            tax_percent: Number(it.tax_percent ?? defaultTax),
+          })) as Item[];
+        setItems(rows.length ? rows : [emptyItem(defaultTax)]);
+      } else if (!isEdit) {
+        setItems([emptyItem(defaultTax)]);
+        setClientId("");
+        setIssueDate(new Date().toISOString().slice(0, 10));
+        setValidityDate("");
+        setReference("");
+        setGstMode("exclusive");
+        setGstKind("intra");
+        setExtraDiscount("0");
+        setShipping("0");
+        setPackaging("0");
+        setOther("0");
+        setNotes(company?.default_notes ?? "");
+        setTerms(company?.default_terms ?? "");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, company?.id]);
+  }, [open, company?.id, existing?.id, isEdit]);
 
   const totals = useMemo(
     () =>
@@ -139,58 +189,81 @@ export function DocumentBuilder({ open, onOpenChange, docType }: Props) {
   const removeItem = (i: number) =>
     setItems((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
 
-  const create = useMutation({
+  const save = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Not authenticated");
       if (!clientId) throw new Error("Select a client");
       if (items.some((i) => !i.name.trim())) throw new Error("Every line needs an item name");
 
-      const year = new Date(issueDate).getFullYear();
-      const prefix =
-        docType === "quotation"
-          ? company?.quotation_prefix ?? "QUO"
-          : company?.invoice_prefix ?? "INV";
+      const payload = {
+        client_id: clientId,
+        issue_date: issueDate,
+        validity_date: validityDate || null,
+        reference: reference || null,
+        currency: company?.default_currency ?? "INR",
+        gst_mode: gstMode,
+        gst_kind: gstKind,
+        subtotal: totals.subtotal,
+        discount_value: Number(extraDiscount) || 0,
+        discount_amount: totals.discount_amount,
+        taxable_amount: totals.taxable_amount,
+        cgst_amount: totals.cgst_amount,
+        sgst_amount: totals.sgst_amount,
+        igst_amount: totals.igst_amount,
+        shipping_charge: Number(shipping) || 0,
+        packaging_charge: Number(packaging) || 0,
+        other_charge: Number(other) || 0,
+        grand_total: totals.grand_total,
+        notes: notes || null,
+        terms: terms || null,
+      };
 
-      const { data: numberData, error: numErr } = await supabase.rpc("next_document_number", {
-        _doc_type: docType,
-        _year: year,
-        _prefix: prefix,
-      });
-      if (numErr) throw numErr;
-      const doc_number = numberData as string;
+      let docId = documentId ?? "";
+      let docNumber = "";
 
-      const { data: doc, error: docErr } = await supabase
-        .from("documents")
-        .insert({
-          owner_id: user.id,
-          company_id: company?.id ?? null,
-          client_id: clientId,
-          doc_type: docType,
-          doc_number,
-          status: "draft",
-          issue_date: issueDate,
-          validity_date: validityDate || null,
-          reference: reference || null,
-          currency: company?.default_currency ?? "INR",
-          gst_mode: gstMode,
-          gst_kind: gstKind,
-          subtotal: totals.subtotal,
-          discount_value: Number(extraDiscount) || 0,
-          discount_amount: totals.discount_amount,
-          taxable_amount: totals.taxable_amount,
-          cgst_amount: totals.cgst_amount,
-          sgst_amount: totals.sgst_amount,
-          igst_amount: totals.igst_amount,
-          shipping_charge: Number(shipping) || 0,
-          packaging_charge: Number(packaging) || 0,
-          other_charge: Number(other) || 0,
-          grand_total: totals.grand_total,
-          notes: notes || null,
-          terms: terms || null,
-        })
-        .select("id")
-        .single();
-      if (docErr) throw docErr;
+      if (isEdit && documentId) {
+        const { data: upd, error: upErr } = await supabase
+          .from("documents")
+          .update(payload)
+          .eq("id", documentId)
+          .select("id, doc_number")
+          .single();
+        if (upErr) throw upErr;
+        docId = upd.id;
+        docNumber = upd.doc_number;
+        const { error: delErr } = await supabase
+          .from("document_items")
+          .delete()
+          .eq("document_id", documentId);
+        if (delErr) throw delErr;
+      } else {
+        const year = new Date(issueDate).getFullYear();
+        const prefix =
+          docType === "quotation"
+            ? company?.quotation_prefix ?? "QUO"
+            : company?.invoice_prefix ?? "INV";
+        const { data: numberData, error: numErr } = await supabase.rpc("next_document_number", {
+          _doc_type: docType,
+          _year: year,
+          _prefix: prefix,
+        });
+        if (numErr) throw numErr;
+        docNumber = numberData as string;
+        const { data: doc, error: docErr } = await supabase
+          .from("documents")
+          .insert({
+            ...payload,
+            owner_id: user.id,
+            company_id: company?.id ?? null,
+            doc_type: docType,
+            doc_number: docNumber,
+            status: "draft",
+          })
+          .select("id")
+          .single();
+        if (docErr) throw docErr;
+        docId = doc.id;
+      }
 
       const itemRows = items.map((it, idx) => {
         const q = Number(it.quantity) || 0;
@@ -198,7 +271,7 @@ export function DocumentBuilder({ open, onOpenChange, docType }: Props) {
         const dp = Number(it.discount_percent) || 0;
         const line_total = q * r * (1 - dp / 100);
         return {
-          document_id: doc.id,
+          document_id: docId,
           owner_id: user.id,
           position: idx,
           name: it.name,
@@ -215,11 +288,12 @@ export function DocumentBuilder({ open, onOpenChange, docType }: Props) {
       const { error: itemsErr } = await supabase.from("document_items").insert(itemRows);
       if (itemsErr) throw itemsErr;
 
-      return doc_number;
+      return docNumber;
     },
     onSuccess: (num) => {
-      toast.success(`${docType === "quotation" ? "Quotation" : "Invoice"} ${num} created`);
+      toast.success(`${docType === "quotation" ? "Quotation" : "Invoice"} ${num} ${isEdit ? "updated" : "created"}`);
       qc.invalidateQueries({ queryKey: ["documents", docType] });
+      qc.invalidateQueries({ queryKey: ["document-edit", documentId] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       onOpenChange(false);
     },
@@ -233,9 +307,11 @@ export function DocumentBuilder({ open, onOpenChange, docType }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New {label}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit ${label}` : `New ${label}`}</DialogTitle>
           <DialogDescription>
-            Number is generated automatically when you save. GST is calculated live.
+            {isEdit
+              ? "Update details, items and totals. Changes are saved on click."
+              : "Number is generated automatically when you save. GST is calculated live."}
           </DialogDescription>
         </DialogHeader>
 
@@ -247,7 +323,16 @@ export function DocumentBuilder({ open, onOpenChange, docType }: Props) {
 
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <Label>Client *</Label>
+            <div className="flex items-center justify-between">
+              <Label>Client *</Label>
+              <button
+                type="button"
+                onClick={() => setShowNewClient(true)}
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <UserPlus className="size-3" /> New client
+              </button>
+            </div>
             <Select value={clientId} onValueChange={setClientId}>
               <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
               <SelectContent>
@@ -447,13 +532,23 @@ export function DocumentBuilder({ open, onOpenChange, docType }: Props) {
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             className="shadow-glow"
-            onClick={() => create.mutate()}
-            disabled={create.isPending || !clientId}
+            onClick={() => save.mutate()}
+            disabled={save.isPending || !clientId}
           >
-            {create.isPending ? "Saving…" : `Save ${label}`}
+            {save.isPending ? "Saving…" : isEdit ? `Update ${label}` : `Save ${label}`}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <NewClientDialog
+        open={showNewClient}
+        onOpenChange={setShowNewClient}
+        onCreated={(id) => {
+          setClientId(id);
+          qc.invalidateQueries({ queryKey: ["clients-options"] });
+          qc.invalidateQueries({ queryKey: ["clients"] });
+        }}
+      />
     </Dialog>
   );
 }
@@ -464,5 +559,110 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
+  );
+}
+
+function NewClientDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onCreated: (id: string) => void;
+}) {
+  const { user } = useAuth();
+  const [name, setName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [gst, setGst] = useState("");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+  const [addr, setAddr] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setName(""); setCompanyName(""); setEmail(""); setPhone("");
+      setGst(""); setState(""); setCity(""); setAddr("");
+    }
+  }, [open]);
+
+  const submit = async () => {
+    if (!user) return;
+    if (!name.trim()) { toast.error("Name is required"); return; }
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        owner_id: user.id,
+        name: name.trim(),
+        company_name: companyName.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        gst_number: gst.trim() || null,
+        state: state.trim() || null,
+        city: city.trim() || null,
+        address_line1: addr.trim() || null,
+      })
+      .select("id")
+      .single();
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Client created");
+    onCreated(data.id);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New client</DialogTitle>
+          <DialogDescription>Add a client and use them immediately on this document.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2 space-y-1.5">
+            <Label>Name *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Contact name" />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>Company</Label>
+            <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Email</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Phone</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>GSTIN</Label>
+            <Input value={gst} onChange={(e) => setGst(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>State</Label>
+            <Input value={state} onChange={(e) => setState(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>City</Label>
+            <Input value={city} onChange={(e) => setCity(e.target.value)} />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>Address</Label>
+            <Input value={addr} onChange={(e) => setAddr(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving ? "Saving…" : "Create client"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
