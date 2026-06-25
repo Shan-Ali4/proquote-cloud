@@ -21,6 +21,8 @@ This project was initially developed using the AI-powered platform **Lovable** a
 - Tailwind CSS
 - Supabase Auth
 
+🌐 **Live Demo:** https://proquote-cloud.lovable.app
+
 ## ✨ Features
 
 ### 📄 Document Management
