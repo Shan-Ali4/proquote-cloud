@@ -154,18 +154,6 @@ npm run preview
 
 ---
 
-## 📸 Screenshots
-
-Add screenshots of:
-
-- Dashboard
-- Create Quotation Page
-- Proforma Invoice Generator
-- Customer Management
-- PDF Preview
-
----
-
 ## 🎯 Use Cases
 
 - Freelancers creating client quotations
