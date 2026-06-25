@@ -208,8 +208,7 @@ git push origin feature/new-feature
 **Mirza Mohammad Shan Ali**
 
 - GitHub: https://github.com/Shan-Ali4
-- LinkedIn: Add your LinkedIn profile here
-
+- LinkedIn: https://www.linkedin.com/in/shan-ali-a28074207/
 ---
 
 ## 📄 License
