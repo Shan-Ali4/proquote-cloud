@@ -6,7 +6,7 @@ A modern cloud-based quotation and proforma invoice management platform that hel
 
 ProQuote Cloud is designed for freelancers, small businesses, sales teams, and service providers who need a fast and efficient way to generate quotations and proforma invoices. The application provides automated calculations, document management, and a user-friendly dashboard to streamline business operations.
 
-## 🚀 Built with Lovable
+## 🤖 Built with Lovable
 
 This project was initially developed using the AI-powered platform **Lovable** and further customized with modern web technologies. Lovable accelerated the development process by generating the foundation of the application, while additional features, integrations, and improvements were implemented to create a production-ready solution.
 
